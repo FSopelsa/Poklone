@@ -54,5 +54,3 @@ src/main/java/se/poklone/
 The domain package does not know about the terminal. That boundary lets a later
 LibGDX screen, JavaFX UI, or other presentation layer use the same battle rules.
 
-See [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the decisions extracted
-from the original [Plan.md](Plan.md) discussion and the next milestones.
