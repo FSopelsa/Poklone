@@ -19,7 +19,8 @@ public final class GameContent {
                 48,
                 List.of(
                         new Move("Nudge", ElementType.NORMAL, 7),
-                        new Move("Vine Snap", ElementType.GRASS, 11)
+                        new Move("Vine Snap", ElementType.GRASS, 11),
+                        new Move("Leaf Burst", ElementType.GRASS, 15)
                 )
         );
         return new Trainer("You", mossling);
@@ -32,7 +33,8 @@ public final class GameContent {
                 50,
                 List.of(
                         new Move("Bump", ElementType.NORMAL, 7),
-                        new Move("Bubble Rush", ElementType.WATER, 10)
+                        new Move("Bubble Rush", ElementType.WATER, 10),
+                        new Move("Water Jet", ElementType.WATER, 14)
                 )
         );
         return new Trainer("Scout Mira", brookfin);
