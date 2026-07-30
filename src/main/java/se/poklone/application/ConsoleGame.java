@@ -66,11 +66,7 @@ public final class ConsoleGame {
     }
 
     private Battle createBattle() {
-        return new Battle(
-                GameContent.createPlayer(),
-                GameContent.createOpponent(),
-                random
-        );
+        return GameContent.createBattle(random);
     }
 
     private void printIntroduction(Battle battle) {

@@ -1,15 +1,26 @@
 package se.poklone.application;
 
+import se.poklone.domain.Battle;
 import se.poklone.domain.Creature;
 import se.poklone.domain.ElementType;
 import se.poklone.domain.Move;
 import se.poklone.domain.Trainer;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.random.RandomGenerator;
 
 public final class GameContent {
 
     private GameContent() {
+    }
+
+    public static Battle createBattle(RandomGenerator random) {
+        return new Battle(
+                createPlayer(),
+                createOpponent(),
+                Objects.requireNonNull(random, "Random generator must not be null")
+        );
     }
 
     public static Trainer createPlayer() {

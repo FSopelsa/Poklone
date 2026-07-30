@@ -1,5 +1,7 @@
 package se.poklone.domain;
 
+import java.util.Objects;
+
 public enum ElementType {
     NORMAL,
     FIRE,
@@ -7,6 +9,8 @@ public enum ElementType {
     GRASS;
 
     public double effectivenessAgainst(ElementType defender) {
+        Objects.requireNonNull(defender, "Defender type must not be null");
+
         if (this == NORMAL || defender == NORMAL || this == defender) {
             return 1.0;
         }

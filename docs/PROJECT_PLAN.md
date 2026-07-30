@@ -43,9 +43,14 @@ classDiagram
 ```
 
 - `domain` contains rules and state. It has no console or graphics dependency.
-- `application` creates the initial content and translates user input into
-  domain operations.
-- `Main` chooses interactive or automated demo mode.
+- `application` creates fresh battles and adapts console input/output.
+- `ui.swing` is a lightweight desktop adapter over `TurnResult` and
+  `AttackResult`; it does not own battle rules.
+- `Main` chooses the desktop UI, console adapter, or automated demo mode.
+
+The Swing screen is intentionally an adapter prototype, not a decision about
+the eventual exploration renderer. It proves that the domain boundary supports
+multiple presentations without bringing graphics APIs into `domain`.
 
 ## Roadmap
 
@@ -57,6 +62,10 @@ classDiagram
 - four-to-six moves with move replacement;
 - a party of creatures and switching;
 - experience, levels, and progression.
+
+Implement this milestone in the order described in
+[`NEXT_STEPS.md`](NEXT_STEPS.md), keeping each change playable through both the
+desktop and deterministic demo paths.
 
 ### Milestone 3: exploration prototype
 
