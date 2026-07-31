@@ -3,4 +3,4 @@ target/
 *.iml
 .m2/
 node_modules/
-
+/qodana.sarif.json
