@@ -14,9 +14,9 @@ class GameContentTest {
         Battle first = GameContent.createBattle(new Random(1));
         Battle second = GameContent.createBattle(new Random(1));
 
-        first.opponent().activeCreature().takeDamage(10);
+        first.opponentActiveCreature().takeDamage(10);
 
-        assertEquals(40, first.opponent().activeCreature().currentHealth());
-        assertEquals(50, second.opponent().activeCreature().currentHealth());
+        assertEquals(40, first.opponentActiveCreature().currentHealth());
+        assertEquals(50, second.opponentActiveCreature().currentHealth());
     }
 }

@@ -1,93 +1,69 @@
- # Poklone project plan
+# Poklone project plan
 
-## What the original plan establishes
+## Product boundary
 
-`Plan.md` is a brainstorming conversation rather than an actionable
-specification. It establishes three useful constraints:
+Poklone is a Java learning project and an original creature battler, not a
+reproduction of Pokemon lore or assets. `Plan.md` is historical brainstorming;
+this document and `README.md` describe the implemented direction.
 
-1. The project is a Pokémon-like learning exercise, not a reproduction of
-   Pokémon intellectual property.
-2. Java is the chosen learning track in this repository. Its existing Maven
-   setup is the deciding evidence even though JavaScript was also discussed.
-3. Object-oriented battle modeling is the interesting starting point. A
-   rendering framework should not be allowed to define the domain model.
+The project grows through complete playable slices. Rules and state stay
+independent of the presentation layer so a future renderer can replace Swing
+without replacing the battle or world model.
 
-## First playable milestone
+## Implemented slices
 
-The first version is a terminal battle with:
+### Battle foundation
 
-- one creature per trainer;
-- health, elemental type, and two moves per creature;
-- fire, water, grass, and neutral effectiveness;
-- player move selection and a computer-selected response;
-- win and loss conditions;
-- deterministic demo mode and unit tests.
+- elemental moves, health, fainting, and deterministic opponent choices;
+- attack, defence, speed, stat-scaled damage, and speed order;
+- immutable trainer parties with active slots, voluntary switches, forced
+  player replacement, and automatic opponent replacement;
+- ordered `BattleEvent` results consumed by console and Swing adapters.
 
-This is intentionally a vertical slice. It produces a complete loop that can
-be extended instead of a large set of disconnected placeholder classes.
+### Exploration prototype
+
+- a pure-domain rectangular `WorldMap` with floor, wall, and encounter tiles;
+- `GameSession` ownership of party, position, phase, current battle, and
+  encounter completion;
+- a one-room Swing view with keyboard/button movement and collision;
+- room -> battle -> room transition, party recovery, encounter clearing after
+  victory, and entrance reset after defeat.
 
 ## Architecture
 
 ```mermaid
-classDiagram
-    Main --> ConsoleGame
+flowchart TD
+    Main --> SwingGame --> GamePanel
+    GamePanel --> WorldPanel --> GameSession
+    GamePanel --> BattlePanel --> GameSession
+    GameSession --> WorldMap
+    GameSession --> GameContent --> Battle
     ConsoleGame --> GameContent
-    ConsoleGame --> Battle
-    Battle --> Trainer
-    Trainer --> Creature
-    Creature "1" o-- "1..*" Move
-    Creature --> ElementType
-    Move --> ElementType
-    Battle --> TurnResult
-    TurnResult "1" o-- "1..2" AttackResult
+    Battle --> Trainer --> Creature
+    Battle --> TurnResult --> BattleEvent
 ```
 
-- `domain` contains rules and state. It has no console or graphics dependency.
-- `application` creates fresh battles and adapts console input/output.
-- `ui.swing` is a lightweight desktop adapter over `TurnResult` and
-  `AttackResult`; it does not own battle rules.
-- `Main` chooses the desktop UI, console adapter, or automated demo mode.
+- `domain` contains state and rules only; no Swing, console, files, or framework APIs.
+- `application` assembles content and coordinates state spanning screens.
+- `ui.swing` renders state and forwards player choices.
+- `Main` chooses Swing, interactive console, or deterministic demo mode.
 
-The Swing screen is intentionally an adapter prototype, not a decision about
-the eventual exploration renderer. It proves that the domain boundary supports
-multiple presentations without bringing graphics APIs into `domain`.
+## Next milestone: progression and content identity
 
-## Roadmap
+1. Give creature and move definitions stable IDs separate from mutable party state.
+2. Add level and experience rules plus explicit post-battle progression events.
+3. Add one reward after Scout Mira and show it in both adapters.
+4. Externalize definitions only after the in-memory identity model is tested.
 
-### Milestone 2: richer battles
-
-- speed and turn order;
-- attack and defence stats;
-- status effects;
-- four-to-six moves with move replacement;
-- a party of creatures and switching;
-- experience, levels, and progression.
-
-Implement this milestone in the order described in
-[`NEXT_STEPS.md`](NEXT_STEPS.md), keeping each change playable through both the
-desktop and deterministic demo paths.
-
-### Milestone 3: exploration prototype
-
-- choose LibGDX only after the battle model is stable;
-- add a tile map, player movement, collision, and one interaction;
-- trigger the existing battle system from the map;
-- keep rendering adapters outside `domain`.
-
-### Milestone 4: content and persistence
-
-- load original creatures, moves, and encounters from data files;
-- validate data at startup;
-- add save/load support using plain serializable game-state data;
-- introduce original art and audio through a documented asset pipeline.
+This comes before a larger world: copying more map rooms now would multiply
+hard-coded content and make save data fragile.
 
 ## Deferred decisions
 
-These should stay open until their milestone needs them:
-
-- LibGDX versus another Java presentation framework;
+- LibGDX, JavaFX, or continued Swing rendering;
 - desktop-only versus desktop and Android;
-- exact stat and damage formulas;
-- map editor and data format;
-- animation and asset dimensions.
+- external content and map formats;
+- save-file schema;
+- animation, art, audio, and asset dimensions.
 
+Choose these only when a playable slice creates a concrete requirement.
