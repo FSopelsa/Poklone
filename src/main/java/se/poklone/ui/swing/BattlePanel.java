@@ -3,10 +3,13 @@ package se.poklone.ui.swing;
 import se.poklone.application.GameContent;
 import se.poklone.domain.AttackResult;
 import se.poklone.domain.Battle;
+import se.poklone.domain.BattleEvent;
 import se.poklone.domain.BattleStatus;
 import se.poklone.domain.Creature;
 import se.poklone.domain.ElementType;
 import se.poklone.domain.Move;
+import se.poklone.domain.SwitchChoice;
+import se.poklone.domain.SwitchResult;
 import se.poklone.domain.TurnResult;
 
 import javax.swing.BorderFactory;
@@ -52,25 +55,41 @@ public final class BattlePanel extends JPanel {
     private final CreatureCard playerCard = new CreatureCard("YOUR CREATURE");
     private final CreatureCard opponentCard = new CreatureCard("OPPONENT");
     private final JPanel movePanel = new JPanel(new GridLayout(0, 2, 10, 10));
+    private final JPanel partyPanel = new JPanel(new GridLayout(0, 2, 8, 8));
     private final JTextArea battleLog = new JTextArea();
     private final JLabel statusLabel = new JLabel("", SwingConstants.CENTER);
     private final JButton restartButton = new JButton("Battle again");
     private final List<JButton> moveButtons = new ArrayList<>();
+    private final List<JButton> partyButtons = new ArrayList<>();
+    private final Runnable finishedAction;
 
     private Battle battle;
     private int turnNumber;
 
     public BattlePanel() {
-        this(() -> GameContent.createBattle(new Random()));
+        this(() -> GameContent.createBattle(new Random()), "Battle again", null);
     }
 
     BattlePanel(Supplier<Battle> battleFactory) {
+        this(battleFactory, "Battle again", null);
+    }
+
+    BattlePanel(
+            Supplier<Battle> battleFactory,
+            String finishedButtonText,
+            Runnable finishedAction
+    ) {
         this.battleFactory = Objects.requireNonNull(battleFactory, "Battle factory must not be null");
+        this.finishedAction = finishedAction;
+        restartButton.setText(Objects.requireNonNull(
+                finishedButtonText,
+                "Finished button text must not be null"
+        ));
 
         setLayout(new BorderLayout(18, 18));
         setBackground(BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(22, 24, 22, 24));
-        setPreferredSize(new Dimension(920, 680));
+        setPreferredSize(new Dimension(920, 740));
 
         add(createHeader(), BorderLayout.NORTH);
         add(createBattlefield(), BorderLayout.CENTER);
@@ -111,7 +130,7 @@ public final class BattlePanel extends JPanel {
     private JComponent createCommandArea() {
         JPanel commandArea = new JPanel(new BorderLayout(14, 0));
         commandArea.setOpaque(false);
-        commandArea.setPreferredSize(new Dimension(880, 255));
+        commandArea.setPreferredSize(new Dimension(880, 300));
 
         battleLog.setName("battle-log");
         battleLog.setEditable(false);
@@ -130,18 +149,42 @@ public final class BattlePanel extends JPanel {
 
         JPanel actions = new JPanel(new BorderLayout(0, 10));
         actions.setOpaque(false);
-        actions.setPreferredSize(new Dimension(340, 230));
+        actions.setPreferredSize(new Dimension(340, 275));
 
         statusLabel.setName("battle-status");
         statusLabel.setForeground(MUTED_TEXT);
         statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 14f));
         actions.add(statusLabel, BorderLayout.NORTH);
 
+        JPanel controls = new JPanel();
+        controls.setOpaque(false);
+        controls.setLayout(new BoxLayout(controls, BoxLayout.Y_AXIS));
+
         movePanel.setOpaque(false);
-        actions.add(movePanel, BorderLayout.CENTER);
+        movePanel.setAlignmentX(LEFT_ALIGNMENT);
+        controls.add(movePanel);
+        controls.add(Box.createVerticalStrut(8));
+
+        JLabel partyLabel = new JLabel("PARTY - click to switch");
+        partyLabel.setForeground(MUTED_TEXT);
+        partyLabel.setFont(partyLabel.getFont().deriveFont(Font.BOLD, 10f));
+        partyLabel.setAlignmentX(LEFT_ALIGNMENT);
+        controls.add(partyLabel);
+        controls.add(Box.createVerticalStrut(5));
+
+        partyPanel.setOpaque(false);
+        partyPanel.setAlignmentX(LEFT_ALIGNMENT);
+        controls.add(partyPanel);
+        actions.add(controls, BorderLayout.CENTER);
 
         styleRestartButton();
-        restartButton.addActionListener(event -> startNewBattle());
+        restartButton.addActionListener(event -> {
+            if (finishedAction == null) {
+                startNewBattle();
+            } else {
+                finishedAction.run();
+            }
+        });
         restartButton.setVisible(false);
         actions.add(restartButton, BorderLayout.SOUTH);
 
@@ -167,11 +210,12 @@ public final class BattlePanel extends JPanel {
         battleLog.setText("");
         restartButton.setVisible(false);
 
-        Creature player = battle.player().activeCreature();
-        Creature opponent = battle.opponent().activeCreature();
+        Creature player = battle.playerActiveCreature();
+        Creature opponent = battle.opponentActiveCreature();
         playerCard.showCreature(player);
         opponentCard.showCreature(opponent);
         rebuildMoveButtons(player.moves());
+        rebuildPartyButtons();
 
         statusLabel.setForeground(MUTED_TEXT);
         statusLabel.setText("Choose your move");
@@ -192,6 +236,45 @@ public final class BattlePanel extends JPanel {
 
         movePanel.revalidate();
         movePanel.repaint();
+    }
+
+    private void rebuildPartyButtons() {
+        partyPanel.removeAll();
+        partyButtons.clear();
+
+        for (int index = 0; index < battle.player().party().size(); index++) {
+            Creature creature = battle.player().party().get(index);
+            JButton button = createPartyButton(creature, index);
+            partyButtons.add(button);
+            partyPanel.add(button);
+        }
+
+        updateActionState();
+        partyPanel.revalidate();
+        partyPanel.repaint();
+    }
+
+    private JButton createPartyButton(Creature creature, int index) {
+        String state = creature.isFainted()
+                ? "fainted"
+                : "%d/%d HP".formatted(creature.currentHealth(), creature.maxHealth());
+        if (index == battle.playerActiveIndex()) {
+            state += " - active";
+        }
+
+        JButton button = new JButton(
+                "<html><center><b>" + creature.name() + "</b><br>" + state + "</center></html>"
+        );
+        button.setName("party-" + index);
+        button.setUI(new BasicButtonUI());
+        button.setBackground(index == battle.playerActiveIndex() ? ACCENT.darker() : SURFACE_LIGHT);
+        button.setForeground(Color.WHITE);
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setFocusPainted(false);
+        button.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        button.addActionListener(event -> playSwitch(index));
+        return button;
     }
 
     private JButton createMoveButton(Move move, int index) {
@@ -215,7 +298,7 @@ public final class BattlePanel extends JPanel {
     }
 
     private void playMove(Move move) {
-        if (battle.status() != BattleStatus.IN_PROGRESS) {
+        if (battle.status() != BattleStatus.IN_PROGRESS || battle.playerNeedsReplacement()) {
             return;
         }
 
@@ -223,20 +306,70 @@ public final class BattlePanel extends JPanel {
         appendLine("");
         appendLine("TURN %d", turnNumber);
 
-        TurnResult turn = battle.takeTurn(move);
-        for (AttackResult attack : turn.attacks()) {
-            appendAttack(attack);
+        renderTurn(battle.takeTurn(move));
+    }
+
+    private void playSwitch(int partyIndex) {
+        if (battle.status() != BattleStatus.IN_PROGRESS
+                || !battle.canPlayerSwitchTo(partyIndex)) {
+            return;
         }
 
-        playerCard.showCreature(battle.player().activeCreature());
-        opponentCard.showCreature(battle.opponent().activeCreature());
-
-        if (turn.status() == BattleStatus.IN_PROGRESS) {
+        if (battle.playerNeedsReplacement()) {
+            SwitchResult replacement = battle.replaceFaintedPlayer(partyIndex);
+            appendSwitch(replacement);
+            refreshBattleView();
             statusLabel.setText("Choose your move");
             return;
         }
 
-        finishBattle(turn.status());
+        turnNumber++;
+        appendLine("");
+        appendLine("TURN %d", turnNumber);
+        renderTurn(battle.takeTurn(new SwitchChoice(partyIndex)));
+    }
+
+    private void renderTurn(TurnResult turn) {
+        for (BattleEvent event : turn.events()) {
+            if (event instanceof AttackResult attack) {
+                appendAttack(attack);
+            } else if (event instanceof SwitchResult switchResult) {
+                appendSwitch(switchResult);
+            }
+        }
+
+        refreshBattleView();
+        if (turn.status() != BattleStatus.IN_PROGRESS) {
+            finishBattle(turn.status());
+        } else if (battle.playerNeedsReplacement()) {
+            statusLabel.setText("Choose a replacement");
+            statusLabel.setForeground(WARNING);
+            updateActionState();
+        } else {
+            statusLabel.setText("Choose your move");
+            statusLabel.setForeground(MUTED_TEXT);
+        }
+    }
+
+    private void refreshBattleView() {
+        Creature player = battle.playerActiveCreature();
+        playerCard.showCreature(player);
+        opponentCard.showCreature(battle.opponentActiveCreature());
+        rebuildMoveButtons(player.moves());
+        rebuildPartyButtons();
+    }
+
+    private void updateActionState() {
+        boolean canUseMove = battle != null
+                && battle.status() == BattleStatus.IN_PROGRESS
+                && !battle.playerNeedsReplacement();
+        moveButtons.forEach(button -> button.setEnabled(canUseMove));
+        for (int index = 0; index < partyButtons.size(); index++) {
+            partyButtons.get(index).setEnabled(
+                    battle.status() == BattleStatus.IN_PROGRESS
+                            && battle.canPlayerSwitchTo(index)
+            );
+        }
     }
 
     private void appendAttack(AttackResult attack) {
@@ -256,6 +389,22 @@ public final class BattlePanel extends JPanel {
         }
     }
 
+    private void appendSwitch(SwitchResult switchResult) {
+        if (switchResult.trainerName().equals(battle.player().name())) {
+            if (switchResult.forced()) {
+                appendLine("Go, %s!", switchResult.newCreatureName());
+            } else {
+                appendLine(
+                        "You switched from %s to %s.",
+                        switchResult.previousCreatureName(),
+                        switchResult.newCreatureName()
+                );
+            }
+        } else {
+            appendLine("%s sent out %s.", switchResult.trainerName(), switchResult.newCreatureName());
+        }
+    }
+
     private void finishBattle(BattleStatus status) {
         boolean playerWon = status == BattleStatus.PLAYER_WON;
         String message = playerWon ? "Victory!" : "Defeated";
@@ -265,9 +414,9 @@ public final class BattlePanel extends JPanel {
         appendLine("");
         appendLine(playerWon
                 ? "You won the practice battle!"
-                : "Your creature fainted. Train and try again!");
+                : "Your party fainted. Train and try again!");
 
-        moveButtons.forEach(button -> button.setEnabled(false));
+        updateActionState();
         restartButton.setVisible(true);
     }
 
@@ -292,6 +441,7 @@ public final class BattlePanel extends JPanel {
         private final CreatureAvatar avatar = new CreatureAvatar();
         private final JLabel nameLabel = new JLabel("", SwingConstants.CENTER);
         private final JLabel typeLabel = new JLabel("", SwingConstants.CENTER);
+        private final JLabel statsLabel = new JLabel("", SwingConstants.CENTER);
         private final JLabel healthLabel = new JLabel("", SwingConstants.CENTER);
         private final JProgressBar healthBar = new JProgressBar();
 
@@ -318,6 +468,10 @@ public final class BattlePanel extends JPanel {
             typeLabel.setFont(typeLabel.getFont().deriveFont(Font.BOLD, 12f));
             typeLabel.setAlignmentX(CENTER_ALIGNMENT);
 
+            statsLabel.setForeground(MUTED_TEXT);
+            statsLabel.setFont(statsLabel.getFont().deriveFont(Font.PLAIN, 11f));
+            statsLabel.setAlignmentX(CENTER_ALIGNMENT);
+
             healthLabel.setForeground(TEXT);
             healthLabel.setFont(healthLabel.getFont().deriveFont(Font.BOLD, 12f));
             healthLabel.setAlignmentX(CENTER_ALIGNMENT);
@@ -335,6 +489,8 @@ public final class BattlePanel extends JPanel {
             add(nameLabel);
             add(Box.createVerticalStrut(3));
             add(typeLabel);
+            add(Box.createVerticalStrut(5));
+            add(statsLabel);
             add(Box.createVerticalGlue());
             add(healthLabel);
             add(Box.createVerticalStrut(6));
@@ -344,6 +500,14 @@ public final class BattlePanel extends JPanel {
         private void showCreature(Creature creature) {
             nameLabel.setText(creature.name());
             typeLabel.setText(creature.type().name());
+            statsLabel.setText("ATK %d   DEF %d   SPD %d".formatted(
+                    creature.stats().attack(),
+                    creature.stats().defence(),
+                    creature.stats().speed()
+            ));
+            statsLabel.setName(roleLabel.getText().equals("OPPONENT")
+                    ? "opponent-stats"
+                    : "player-stats");
             healthLabel.setText("%d / %d HP".formatted(
                     creature.currentHealth(),
                     creature.maxHealth()

@@ -8,10 +8,17 @@ public final class Creature {
     private final String name;
     private final ElementType type;
     private final int maxHealth;
+    private final Stats stats;
     private final List<Move> moves;
     private int currentHealth;
 
-    public Creature(String name, ElementType type, int maxHealth, List<Move> moves) {
+    public Creature(
+            String name,
+            ElementType type,
+            int maxHealth,
+            Stats stats,
+            List<Move> moves
+    ) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Creature name must not be blank");
         }
@@ -28,6 +35,7 @@ public final class Creature {
 
         this.name = name;
         this.maxHealth = maxHealth;
+        this.stats = Objects.requireNonNull(stats, "Creature stats must not be null");
         this.currentHealth = maxHealth;
         this.moves = List.copyOf(moves);
     }
@@ -48,6 +56,10 @@ public final class Creature {
         return currentHealth;
     }
 
+    public Stats stats() {
+        return stats;
+    }
+
     public List<Move> moves() {
         return moves;
     }
@@ -65,6 +77,10 @@ public final class Creature {
             throw new IllegalArgumentException("Damage must not be negative");
         }
         currentHealth = Math.max(0, currentHealth - damage);
+    }
+
+    public void restoreHealth() {
+        currentHealth = maxHealth;
     }
 }
 

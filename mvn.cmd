@@ -14,6 +14,11 @@ if not exist "%POKLONE_JAVA_HOME%\bin\java.exe" (
 
 set "JAVA_HOME=%POKLONE_JAVA_HOME%"
 set "PATH=%JAVA_HOME%\bin;%PATH%"
+
+if not defined MAVEN_USER_HOME (
+    set "MAVEN_USER_HOME=%~dp0.m2"
+)
+
 call "%~dp0mvnw.cmd" %*
 set "MVN_EXIT_CODE=%ERRORLEVEL%"
 

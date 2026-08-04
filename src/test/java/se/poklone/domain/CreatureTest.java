@@ -17,6 +17,7 @@ class CreatureTest {
                 "Testling",
                 ElementType.NORMAL,
                 20,
+                new Stats(10, 10, 10),
                 List.of(new Move("Tap", ElementType.NORMAL, 5))
         );
 
@@ -30,7 +31,13 @@ class CreatureTest {
     void movesAreAnImmutableSnapshot() {
         List<Move> sourceMoves = new ArrayList<>();
         sourceMoves.add(new Move("Tap", ElementType.NORMAL, 5));
-        Creature creature = new Creature("Testling", ElementType.NORMAL, 20, sourceMoves);
+        Creature creature = new Creature(
+                "Testling",
+                ElementType.NORMAL,
+                20,
+                new Stats(10, 10, 10),
+                sourceMoves
+        );
 
         sourceMoves.clear();
 
