@@ -5,6 +5,8 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import java.awt.GraphicsEnvironment;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public final class SwingGame {
 
@@ -25,8 +27,15 @@ public final class SwingGame {
         useSystemLookAndFeel();
 
         JFrame frame = new JFrame("Poklone");
+        GamePanel gamePanel = new GamePanel();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setContentPane(new BattlePanel());
+        frame.setContentPane(gamePanel);
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent event) {
+                gamePanel.closeAudio();
+            }
+        });
         frame.pack();
         frame.setLocationByPlatform(true);
         frame.setLocationRelativeTo(null);

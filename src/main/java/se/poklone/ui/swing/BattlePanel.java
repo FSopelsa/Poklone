@@ -59,19 +59,26 @@ public final class BattlePanel extends JPanel {
     private final JTextArea battleLog = new JTextArea();
     private final JLabel statusLabel = new JLabel("", SwingConstants.CENTER);
     private final JButton restartButton = new JButton("Battle again");
+    private final JButton soundButton = new JButton();
     private final List<JButton> moveButtons = new ArrayList<>();
     private final List<JButton> partyButtons = new ArrayList<>();
     private final Runnable finishedAction;
+    private final AudioPlayer audio;
 
     private Battle battle;
     private int turnNumber;
 
     public BattlePanel() {
-        this(() -> GameContent.createBattle(new Random()), "Battle again", null);
+        this(
+                () -> GameContent.createBattle(new Random()),
+                "Battle again",
+                null,
+                AudioPlayer.systemDefault()
+        );
     }
 
     BattlePanel(Supplier<Battle> battleFactory) {
-        this(battleFactory, "Battle again", null);
+        this(battleFactory, "Battle again", null, AudioPlayer.silent());
     }
 
     BattlePanel(
@@ -79,8 +86,18 @@ public final class BattlePanel extends JPanel {
             String finishedButtonText,
             Runnable finishedAction
     ) {
+        this(battleFactory, finishedButtonText, finishedAction, AudioPlayer.silent());
+    }
+
+    BattlePanel(
+            Supplier<Battle> battleFactory,
+            String finishedButtonText,
+            Runnable finishedAction,
+            AudioPlayer audio
+    ) {
         this.battleFactory = Objects.requireNonNull(battleFactory, "Battle factory must not be null");
         this.finishedAction = finishedAction;
+        this.audio = Objects.requireNonNull(audio, "Audio player must not be null");
         restartButton.setText(Objects.requireNonNull(
                 finishedButtonText,
                 "Finished button text must not be null"
@@ -99,9 +116,12 @@ public final class BattlePanel extends JPanel {
     }
 
     private JComponent createHeader() {
-        JPanel header = new JPanel();
+        JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
-        header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
+
+        JPanel labels = new JPanel();
+        labels.setOpaque(false);
+        labels.setLayout(new BoxLayout(labels, BoxLayout.Y_AXIS));
 
         JLabel title = new JLabel("POKLONE");
         title.setForeground(TEXT);
@@ -113,10 +133,25 @@ public final class BattlePanel extends JPanel {
         subtitle.setFont(subtitle.getFont().deriveFont(Font.BOLD, 13f));
         subtitle.setAlignmentX(LEFT_ALIGNMENT);
 
-        header.add(title);
-        header.add(Box.createVerticalStrut(3));
-        header.add(subtitle);
+        labels.add(title);
+        labels.add(Box.createVerticalStrut(3));
+        labels.add(subtitle);
+        header.add(labels, BorderLayout.WEST);
+        header.add(createSoundButton(), BorderLayout.EAST);
         return header;
+    }
+
+    private JButton createSoundButton() {
+        soundButton.setName("toggle-sound");
+        soundButton.setBackground(SURFACE_LIGHT);
+        soundButton.setForeground(TEXT);
+        soundButton.setFocusPainted(false);
+        soundButton.addActionListener(event -> {
+            audio.setMuted(!audio.muted());
+            updateSoundButton();
+        });
+        updateSoundButton();
+        return soundButton;
     }
 
     private JComponent createBattlefield() {
@@ -219,6 +254,7 @@ public final class BattlePanel extends JPanel {
 
         statusLabel.setForeground(MUTED_TEXT);
         statusLabel.setText("Choose your move");
+        updateSoundButton();
         appendLine("%s sent out %s.", battle.opponent().name(), opponent.name());
         appendLine("Go, %s!", player.name());
     }
@@ -306,7 +342,7 @@ public final class BattlePanel extends JPanel {
         appendLine("");
         appendLine("TURN %d", turnNumber);
 
-        renderTurn(battle.takeTurn(move));
+        renderTurn(battle.takeTurn(move), SoundEffect.ATTACK);
     }
 
     private void playSwitch(int partyIndex) {
@@ -317,6 +353,7 @@ public final class BattlePanel extends JPanel {
 
         if (battle.playerNeedsReplacement()) {
             SwitchResult replacement = battle.replaceFaintedPlayer(partyIndex);
+            audio.play(SoundEffect.SWITCH);
             appendSwitch(replacement);
             refreshBattleView();
             statusLabel.setText("Choose your move");
@@ -326,10 +363,15 @@ public final class BattlePanel extends JPanel {
         turnNumber++;
         appendLine("");
         appendLine("TURN %d", turnNumber);
-        renderTurn(battle.takeTurn(new SwitchChoice(partyIndex)));
+        renderTurn(battle.takeTurn(new SwitchChoice(partyIndex)), SoundEffect.SWITCH);
     }
 
-    private void renderTurn(TurnResult turn) {
+    private void renderTurn(TurnResult turn, SoundEffect actionSound) {
+        audio.play(switch (turn.status()) {
+            case PLAYER_WON -> SoundEffect.VICTORY;
+            case OPPONENT_WON -> SoundEffect.DEFEAT;
+            case IN_PROGRESS -> actionSound;
+        });
         for (BattleEvent event : turn.events()) {
             if (event instanceof AttackResult attack) {
                 appendAttack(attack);
@@ -418,6 +460,10 @@ public final class BattlePanel extends JPanel {
 
         updateActionState();
         restartButton.setVisible(true);
+    }
+
+    private void updateSoundButton() {
+        soundButton.setText(audio.muted() ? "Sound: off" : "Sound: on");
     }
 
     private void appendLine(String format, Object... arguments) {

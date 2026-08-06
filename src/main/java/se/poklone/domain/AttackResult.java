@@ -8,6 +8,6 @@ public record AttackResult(
         double effectiveness,
         int defenderHealth,
         boolean defenderFainted
-) {
+) implements BattleEvent {
 }
 

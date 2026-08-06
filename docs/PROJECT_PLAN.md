@@ -28,6 +28,8 @@ without replacing the battle or world model.
 - a one-room Swing view with keyboard/button movement and collision;
 - room -> battle -> room transition, party recovery, encounter clearing after
   victory, and entrance reset after defeat.
+- CC0 placeholder room music and event-driven sound effects behind a Swing-only
+  Java Sound adapter with mute control.
 
 ## Architecture
 
@@ -64,6 +66,6 @@ hard-coded content and make save data fragile.
 - desktop-only versus desktop and Android;
 - external content and map formats;
 - save-file schema;
-- animation, art, audio, and asset dimensions.
+- animation, original art, richer music transitions, and asset dimensions.
 
 Choose these only when a playable slice creates a concrete requirement.

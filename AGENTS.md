@@ -2,28 +2,26 @@
 
 ## Scope and architecture
 
-- Poklone is a Java 21/Maven learning project with one completed terminal-battle vertical slice; it is an original creature battler, not a Pokémon asset or lore clone. Read `README.md` and `docs/PROJECT_PLAN.md` before changing roadmap-scale behavior.
-- Preserve the boundary: `src/main/java/se/poklone/domain/` owns battle state and rules and must not depend on console, graphics, files, or framework APIs. `application/` adapts input/output and assembles content; `Main` selects the interactive or `--demo` entry point.
-- The flows are `Main -> SwingGame/BattlePanel -> GameContent -> Battle` and `Main -> ConsoleGame -> GameContent -> Battle`. Both adapters render `TurnResult`/`AttackResult`; keep UI text and widgets out of `Battle`.
-- The design deliberately starts with small, explicit types: immutable `record`s for `Move`, `Trainer`, and result data; mutable health only in `Creature`; and `Battle` as the turn coordinator. Do not introduce a framework or speculative move/effect hierarchy for the current slice.
+- Poklone is a Java 21/Maven learning project and original creature battler. Read `README.md` and `docs/PROJECT_PLAN.md` before roadmap-scale changes; `Plan.md` is historical brainstorming.
+- Preserve the boundary: `domain/` owns battle and map rules with no Swing, console, file, or framework dependencies. `application/` assembles content and owns cross-screen state; `ui.swing/` renders and forwards choices.
+- Current Swing flow is `Main -> SwingGame -> GamePanel -> WorldPanel/BattlePanel -> GameSession -> WorldMap/Battle`. Console flow is `Main -> ConsoleGame -> GameContent -> Battle`.
+- `GameSession` is the source of truth for player party, world position, phase, current battle, and encounter completion. Do not duplicate these in panels.
+- Keep the current small explicit model: immutable records and `List.copyOf` snapshots, mutable health only in `Creature`, active indexes only in `Battle`, screen transitions only in `GameSession`/`GamePanel`.
 
-## Domain rules to preserve
+## Rules and patterns
 
-- `Battle.takeTurn(Move)` validates that the battle is active and that the player's active creature knows the exact move. It resolves the player attack first and skips the opponent response if it faints (see `BattleTest`).
-- Damage is `max(1, round(move.power() * effectiveness))`; `Creature.takeDamage` clamps health at zero. Elemental strengths are the 1.5/0.75 fire-water-grass triangle; `NORMAL` and matching types are neutral (`ElementType`).
-- Keep randomness injected as `RandomGenerator`: `ConsoleGame.createDemo()` uses `new Random(7)` and `ConsoleGameTest` injects streams/randomness. Avoid hidden `Math.random()`/new RNG calls in domain behavior.
-- Preserve constructor validation and immutable collection snapshots (`List.copyOf`) when adding domain data. Return immutable event data suitable for another UI.
+- `Battle.takeTurn(Move)` delegates to `MoveChoice`; general callers can send `MoveChoice` or `SwitchChoice`. Results are ordered `BattleEvent` values (`AttackResult`, `SwitchResult`) rendered by both adapters.
+- A voluntary switch consumes the turn before the opponent attacks. A fainted player active requires `replaceFaintedPlayer`; a fainted opponent auto-selects its first healthy reserve. Battle ends only when a whole party faints (`BattleTest`).
+- Damage is `max(1, round(power * attack / defence * effectiveness))`. Faster creatures act first; the player wins speed ties. Fire/water/grass use 1.5/0.75 effectiveness; normal and matching types are neutral.
+- Keep randomness injected as `RandomGenerator`. `GameSession` passes its generator into fresh encounters; demo/tests use seeded `Random` instances. Never hide `Math.random()` or new RNG calls in domain behavior.
+- `WorldMap` parses rectangular `#` wall, `.` floor, and `E` encounter rows. Movement/collision stays in `GameSession`; drawing and key bindings stay in `WorldPanel`.
+- Put built-in mutable object construction in `GameContent`. `createBattle(Trainer, RandomGenerator)` must reuse the session's player but create fresh opponent state.
+- Console I/O remains injected through `Scanner`/`PrintStream`. Swing panels expose package-private injectable constructors and named controls such as `move-0`, `party-1`, and `move-right` for component tests.
+- Keep audio in `ui.swing`: panels emit `SoundEffect`/`MusicTrack` cues through injected `AudioPlayer`; tests use silent/recording players. Store distributable files under `src/main/resources/audio/` and record source URL, creator, original filename, and license in `audio/LICENSES.md`.
 
-## Content and console conventions
+## Build and verification
 
-- Put current built-in creatures and moves in `GameContent`; call `GameContent.createBattle(RandomGenerator)` so each game receives independent mutable creature state.
-- Keep console input/output in `ConsoleGame`, injected through `Scanner` and `PrintStream`. Keep Swing code under `ui.swing`; `BattlePanel` accepts a battle supplier for deterministic UI tests.
-- The default launch is Swing; `--console` selects numbered terminal input and `--demo` chooses the highest-power move for a deterministic smoke run.
-- Extend the domain model before choosing LibGDX/JavaFX or another renderer. `docs/PROJECT_PLAN.md` intentionally defers framework, stat formula, map format, persistence, and assets.
-
-## Build, test, and verify
-
-- Use the project-pinned launchers: `.\mvn.cmd test` runs JUnit 5 on Temurin 21 and `.\mvn.cmd clean package` produces `target/Poklone-1.0-SNAPSHOT.jar`. `.\run.cmd` builds and opens the GUI.
-- Exercise the end-to-end noninteractive path with `.\run.cmd --demo`; it should finish with `You won the practice battle!`.
-- Place focused JUnit 5 tests under the matching package in `src/test/java`. Existing tests assert observable rules/results (damage, turn count/status, output) rather than private implementation.
-- `Plan.md` is historical brainstorming; treat `README.md` and `docs/PROJECT_PLAN.md` as the current project description. `package.json`/`node_modules` are untracked tooling artifacts, not part of the Java application.
+- Use `.\mvn.cmd test` for JUnit Jupiter on the project-pinned Temurin 21. Use `.\mvn.cmd clean package` for `target/Poklone-1.0-SNAPSHOT.jar` and `.\run.cmd` for the GUI.
+- Run `.\run.cmd --demo` for the noninteractive end-to-end path; it must finish with `You won the practice battle!`.
+- Tests mirror packages under `src/test/java` and assert public outcomes/events, session transitions, output, and named Swing components—not private implementation.
+- `run.cmd` launches `target/classes` to avoid locking the JAR. The project-local `.m2/`, generated `target/`, `qodana.sarif.json`, `package.json`, and `node_modules/` are tooling artifacts, not application sources.

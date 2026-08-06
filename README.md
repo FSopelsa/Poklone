@@ -13,13 +13,15 @@ Pokemon characters, names, world-building, or assets.
 
 - Java 21 and Maven 3.9.16 pinned for this project
 - Swing room UI with WASD/arrow/button movement, walls, and one encounter
+- Quiet looping room music plus movement, collision, encounter, battle, and outcome sounds
+- Shared `Sound: on/off` control; missing audio devices degrade without stopping the game
 - Swing and terminal battles with party selection and voluntary switching
 - Forced player replacement and automatic opponent replacement after fainting
 - `GameSession` owns the player's persistent party, world position, and
   exploration/battle transitions
 - Attack, defence, speed, elemental effectiveness, and speed-based turn order
 - Deterministic `--demo` mode for smoke testing
-- 33 passing JUnit tests across domain, application, console, and Swing layers
+- 35 passing JUnit tests across domain, application, console, and Swing layers
 
 ## Gameplay loop
 
@@ -63,11 +65,20 @@ flowchart LR
   `GameContent` creates fresh built-in creatures, parties, and the practice map.
 - `ui.swing.GamePanel` switches between `WorldPanel` and `BattlePanel`.
   Neither UI class decides battle outcomes or collision rules.
+- `ui.swing.AudioPlayer` keeps Java Sound playback behind an injectable adapter;
+  tests use silent or recording implementations instead of desktop audio hardware.
 - `ConsoleGame` is a second adapter over the same battle model.
 
 This Swing world is deliberately a mechanics prototype. It validates movement,
 collision, encounters, and screen transitions before committing to LibGDX,
 JavaFX, a map editor, or an asset pipeline.
+
+## Placeholder audio
+
+Audio files live under `src/main/resources/audio/` and ship inside the JAR.
+Current music comes from Not Jam Music Pack 2; effects come from 8-Bit Sound
+Effect Pack Vol. 001. Both are CC0. Exact authors, original filenames, links,
+and licenses are recorded in `src/main/resources/audio/LICENSES.md`.
 
 ## Run and verify
 
@@ -108,6 +119,6 @@ order and [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) for milestone decisions
 ## Verification snapshot
 
 ```text
-.\mvn.cmd clean test   -> 33 passed, 0 failed on Temurin 21.0.12
+.\mvn.cmd clean test   -> 35 passed, 0 failed on Temurin 21.0.12
 .\run.cmd --demo      -> completes with "You won the practice battle!"
 ```

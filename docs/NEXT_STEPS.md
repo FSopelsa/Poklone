@@ -1,53 +1,57 @@
 # Poklone next steps
 
-## Baseline
+## Completed foundation
 
-The repository now has a reproducible Java 21 build, a tested 1v1 battle
-domain, console/demo adapters, and a Swing battle screen. The next work should
-increase domain depth without making the UI responsible for rules.
+### 1. Stats and turn order
 
-## 1. Add stats and turn order
+`Stats` models attack, defence, and speed. `Battle` resolves faster creatures
+first, gives ties to the player, stops a fainted creature from acting, and uses
+`max(1, round(power * attack / defence * effectiveness))` damage.
 
-- Introduce a small immutable stats value (attack, defence, speed) and keep
-  current health as battle state.
-- Replace the fixed player-first sequence in `Battle.takeTurn` with
-  speed-based ordering and an explicit tie rule.
-- Extend `AttackResult` only with data a renderer needs; do not print or animate
-  inside `Battle`.
-- Keep one deterministic scenario in `--demo` and add rule tests for both
-  attack orders, ties, fainting, and minimum damage.
+### 2. Parties and switching
 
-This is the next implementation slice because parties, switching, and status
-effects all need a trustworthy action-order model.
+`Trainer` owns an immutable party snapshot. `Battle` owns active indexes and
+accepts `MoveChoice` or `SwitchChoice`. Switching consumes a turn; a player
+with a fainted active creature must select a healthy reserve, while the
+opponent automatically selects its first healthy reserve.
 
-## 2. Add parties and switching
+### 3. Session and one-room world
 
-- Let a `Trainer` own an immutable creature roster and track an active slot in
-  battle state.
-- Model a turn choice as either a move or a switch so console and Swing can use
-  the same application-facing operation.
-- Define forced replacement after fainting before adding voluntary switching.
-- Update the GUI with a compact party selector only after the domain contract
-  and tests are stable.
+`GameSession` owns the player party, map position, active phase, battle, and
+encounter completion. `WorldMap` handles walkability. Swing's `GamePanel`
+switches between `WorldPanel` and `BattlePanel`; victory clears the encounter
+and defeat returns the player to the entrance.
 
-## 3. Add progression
+### Audio placeholder slice
 
-- Separate reusable creature/content definitions from per-save mutable state.
-- Add level, experience, stat growth, and move-learning rules in small steps.
-- Keep progression results as explicit events so a future screen can present
-  level-ups without domain-side dialogs.
+Swing now plays CC0 room music and short cues for movement, walls, encounters,
+attacks, switching, victory, and defeat. Playback uses an injected `AudioPlayer`,
+stays outside `domain`, and fails softly when a machine has no audio line.
 
-## 4. Externalize content and saves
+## Recommended next work
 
-- Move built-in definitions out of `GameContent` into a validated data format.
-- Fail startup with useful validation errors for duplicate IDs, missing
-  references, or invalid values.
-- Save only plain game state plus stable content IDs; never serialize Swing or
-  live `Battle` objects.
+### 4. Stable content identity and progression
 
-## 5. Choose the exploration renderer
+- Separate immutable species/move definitions from mutable owned-creature state.
+- Add stable IDs before saves or external files reference content.
+- Add level, experience, stat growth, and explicit progression events.
+- Award a small deterministic reward after Scout Mira as the next playable slice.
 
-Choose LibGDX, JavaFX, or another renderer only when the next playable slice
-needs a map, movement, collision, and battle transitions. Keep the existing
-Swing battle screen as a fast domain/debug client even if a game framework is
-added later.
+### 5. External content and saves
+
+- Move definitions and encounters from `GameContent` into validated data.
+- Reject duplicate IDs, missing references, and invalid values at startup.
+- Save plain session state and stable IDs, never Swing components or live `Battle` objects.
+
+### 6. Expand exploration
+
+- Add map exits, interaction targets, and multiple encounter definitions.
+- Select a renderer only when animation, camera, or asset needs exceed Swing.
+- Preserve `GameSession` and domain APIs so presentation changes stay isolated.
+
+## Fun slices after content identity
+
+- Render elemental attack flashes and small screen shake from `BattleEvent` data.
+- Add one talkable NPC and one treasure tile before adding another map.
+- Give Scout Mira a rematch with a changed party after the first victory.
+- Crossfade separate exploration and battle music once the audio placeholders settle.
